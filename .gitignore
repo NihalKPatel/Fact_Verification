@@ -1,7 +1,4 @@
 
-.idea/misc.xml
-.idea/misc.xml
-.idea/modules.xml
-.idea/vcs.xml
-.idea/workspace.xml
+.idea
 Fact_Verification.iml
+dataset/FactVer1.3.csv
