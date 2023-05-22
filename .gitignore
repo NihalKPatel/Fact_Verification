@@ -1,4 +1,4 @@
+datasets/
+output_datasets/
+venv/
 
-.idea
-/dataset/
-Fact_Verification.iml
