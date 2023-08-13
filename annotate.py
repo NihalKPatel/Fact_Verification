@@ -99,7 +99,7 @@ def tokenize_claims_with_bert(df, output_file_name="output_datasets/tokenized_cl
 
     # Tokenize the 'claims' column
     df['tokenized_claims'] = df['claims'].apply(
-        lambda claims: [tokenizer.encode(claim, add_special_tokens=True) for claim in claims])
+        lambda claims: [tokenizer.tokenize(claim) for claim in claims])
 
     # Write the tokenized claims to an Excel file
     df.to_excel(output_file_name)
