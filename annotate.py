@@ -1,6 +1,7 @@
 import re
 import pandas as pd
 import tensorflow as tf
+from transformers import BertTokenizer
 
 COVID_NAMES = [
     "covid",
@@ -55,7 +56,7 @@ def filter_by_covid(file_name, keywords):
     )  # removing all escape sequences and special characters
     output["content"] = output["content"].replace(
         r'[^\x00-\x7F]', "", regex=True
-        )  # remove all non-ASCII characters
+    )  # remove all non-ASCII characters
 
     output.loc[:, "content"] = output["content"].apply(
         lambda x: x[1:-1].split(",")
@@ -77,9 +78,9 @@ def filter_by_covid(file_name, keywords):
     return output  # Return the output
 
 
-def tokenize_claims(df, output_file_name="output_datasets/tokenized_claims.xlsx"):
+def tokenize_claims_with_bert(df, output_file_name="output_datasets/tokenized_claims_with_bert.xlsx"):
     """
-    Tokenize the claims in a dataframe using TensorFlow's Tokenizer
+    Tokenize the claims in a dataframe using BERT's Tokenizer
 
     Args:
         df (pandas.core.frame.DataFrame): Pandas dataframe to be tokenized
@@ -93,16 +94,12 @@ def tokenize_claims(df, output_file_name="output_datasets/tokenized_claims.xlsx"
     if 'claims' not in df.columns:
         raise ValueError("The dataframe must contain a 'claims' column.")
 
-    # Initialize the Tokenizer
-    tokenizer = tf.keras.preprocessing.text.Tokenizer()
+    # Initialize the BERT Tokenizer
+    tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
 
-    # Fit the Tokenizer on the claims
-    claims_texts = [claim for claims in df['claims'] for claim in claims]
-    tokenizer.fit_on_texts(claims_texts)
-
-    # Apply tokenization on the 'claims' column
+    # Tokenize the 'claims' column
     df['tokenized_claims'] = df['claims'].apply(
-        lambda claims: [tokenizer.texts_to_sequences([claim])[0] for claim in claims])
+        lambda claims: [tokenizer.encode(claim, add_special_tokens=True) for claim in claims])
 
     # Write the tokenized claims to an Excel file
     df.to_excel(output_file_name)
@@ -113,4 +110,4 @@ def tokenize_claims(df, output_file_name="output_datasets/tokenized_claims.xlsx"
 # Example usage
 filtered_data = filter_by_covid("FactVer1.3.xlsx", COVID_NAMES)
 
-tokenize_claims(filtered_data, "output_datasets/my_tokenized_claims.xlsx")
+tokenize_claims_with_bert(filtered_data, "output_datasets/my_tokenized_claims_with_bert.xlsx")
