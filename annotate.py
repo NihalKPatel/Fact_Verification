@@ -1,5 +1,6 @@
 import re
 import pandas as pd
+import tensorflow as tf
 
 COVID_NAMES = [
     "covid",
@@ -47,7 +48,7 @@ def filter_by_covid(file_name, keywords):
         data["content"].str.contains(pd_filter, case=False)
         & data["content"].str.endswith("]")
         | data["headline"].str.contains(pd_filter, na=False)
-    ]  # filter the dataset by the given keywords,filter "out" incomplete data.
+        ].copy()
 
     output["content"] = output["content"].replace(
         escape_chars, "", regex=True
@@ -76,4 +77,40 @@ def filter_by_covid(file_name, keywords):
     return output  # Return the output
 
 
-filter_by_covid("factver1.xlsx", COVID_NAMES)
+def tokenize_claims(df, output_file_name="output_datasets/tokenized_claims.xlsx"):
+    """
+    Tokenize the claims in a dataframe using TensorFlow's Tokenizer
+
+    Args:
+        df (pandas.core.frame.DataFrame): Pandas dataframe to be tokenized
+        output_file_name (str): The file name to write the tokenized claims
+
+    Returns:
+        pandas.core.frame.DataFrame: Pandas dataframe with tokenized claims
+    """
+
+    # Check if 'claims' column exists in the dataframe
+    if 'claims' not in df.columns:
+        raise ValueError("The dataframe must contain a 'claims' column.")
+
+    # Initialize the Tokenizer
+    tokenizer = tf.keras.preprocessing.text.Tokenizer()
+
+    # Fit the Tokenizer on the claims
+    claims_texts = [claim for claims in df['claims'] for claim in claims]
+    tokenizer.fit_on_texts(claims_texts)
+
+    # Apply tokenization on the 'claims' column
+    df['tokenized_claims'] = df['claims'].apply(
+        lambda claims: [tokenizer.texts_to_sequences([claim])[0] for claim in claims])
+
+    # Write the tokenized claims to an Excel file
+    df.to_excel(output_file_name)
+
+    return df
+
+
+# Example usage
+filtered_data = filter_by_covid("FactVer1.3.xlsx", COVID_NAMES)
+
+tokenize_claims(filtered_data, "output_datasets/my_tokenized_claims.xlsx")
