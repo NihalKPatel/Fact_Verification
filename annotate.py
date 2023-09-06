@@ -35,13 +35,13 @@ def filter_by_covid(file_name, keywords):
     output = data[
         data["content"].str.contains(pd_filter, case=False) & data["content"].str.endswith("]") |
         data["headline"].str.contains(pd_filter, na=False)
-        ]
-    output["content"] = output["content"].replace(escape_chars, "", regex=True)
-    output["content"] = output["content"].replace(r'[^\x00-\x7F]', "", regex=True)
-    output["content"] = output["content"].apply(lambda x: x[1:-1].split(","))
+        ].copy()
+    output.loc[:, "content"] = output["content"].replace(escape_chars, "", regex=True)
+    output.loc[:, "content"] = output["content"].replace(r'[^\x00-\x7F]', "", regex=True)
+    output.loc[:, "content"] = output["content"].apply(lambda x: x[1:-1].split(","))
 
     # Create a new column with filtered claims
-    output["claims"] = [
+    output.loc[:, "claims"] = [
         [e for e in list_ if any(keyword.lower() in e.lower() for keyword in keywords)]
         for list_ in output["content"]
     ]
