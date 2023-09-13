@@ -22,7 +22,7 @@ def encode_and_pad(tokenized_content):
 
 def transform_data(df, output_file_name="output_datasets/finalver1_complete.xlsx"):
     """
-    Tokenize, Encode,  and Decode data.
+    Tokenize, Encode, and Decode data.
 
     Args:
         df (pandas.core.frame.DataFrame): Pandas dataframe to be tokenized
@@ -31,33 +31,19 @@ def transform_data(df, output_file_name="output_datasets/finalver1_complete.xlsx
     Returns:
         pandas.core.frame.DataFrame: Pandas dataframe with tokenized claims
     """
-
-    # Check if 'claims' column exists in the dataframe
     if 'claims' not in df.columns:
         raise ValueError("The dataframe must contain a 'claims' column.")
 
-    # Initialize gpt2 tokenizer
     global gpt2_tokenizer
     gpt2_tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
     gpt2_tokenizer.pad_token = gpt2_tokenizer.eos_token
 
-    # Tokenize the 'claims' column
-    df['tokenized_claims'] = df['claims'].apply(
-        lambda claims: [gpt2_tokenizer.tokenize(claim) for claim in claims])
-
-    # Encode the tokenized content
-
+    df['tokenized_claims'] = df['claims'].apply(lambda claims: [gpt2_tokenizer.tokenize(claim) for claim in claims])
     df['encoded_claims'] = df['tokenized_claims'].apply(encode_and_pad)
 
-    # decoding the claims df['decoded_claims'] = df['encoded_claims'].apply(lambda encoded_content: [
-    # gpt2_tokenizer.decode(encoded,skip_special_token=True) for encoded in encoded_content])
-
-    # Write the 2 columns (tokenized and encoded) to an Excel file
     df.to_excel(output_file_name)
-
     return df
 
 
 filter_ = filter_by_covid('factver1.xlsx', COVID_NAMES)
 transformed_df = transform_data(filter_, output_file_name="output_datasets/finalver1_complete.xlsx")
-
