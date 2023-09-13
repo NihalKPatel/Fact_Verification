@@ -1,9 +1,7 @@
-from transformers import GPT2Tokenizer
-from annotate import filter_by_covid, COVID_NAMES
-import torch
 import pandas as pd
+from transformers import GPT2Tokenizer
 
-
+from annotate import filter_by_covid, COVID_NAMES
 
 
 def transform_data(df, output_file_name="output_datasets/finalver1_complete.xlsx"):
@@ -22,13 +20,8 @@ def transform_data(df, output_file_name="output_datasets/finalver1_complete.xlsx
     if 'claims' not in df.columns:
         raise ValueError("The dataframe must contain a 'claims' column.")
 
-    
     # Initialize gpt2 tokenizer
     gpt2_tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
-
-    
-
-
 
     # Tokenize the 'claims' column
     df['tokenized_claims'] = df['claims'].apply(
@@ -37,20 +30,13 @@ def transform_data(df, output_file_name="output_datasets/finalver1_complete.xlsx
     # Encode the tokenized content
 
     df['encoded_claims'] = df['tokenized_claims'].apply(
-        lambda tokenized_content : [gpt2_tokenizer.encode_plus(content,
-        return_tensors='tf', return_attention_mask=True) for content in tokenized_content]
+        lambda tokenized_content: [gpt2_tokenizer.encode_plus(content,
+                                                              return_tensors='tf', return_attention_mask=True) for
+                                   content in tokenized_content]
     )
 
-
-
-
-    # decoding the claims
-    # df['decoded_claims'] = df['encoded_claims'].apply(lambda encoded_content: [gpt2_tokenizer.decode(encoded,skip_special_token=True) for encoded in encoded_content])
-
-
-    
-
-
+    # decoding the claims df['decoded_claims'] = df['encoded_claims'].apply(lambda encoded_content: [
+    # gpt2_tokenizer.decode(encoded,skip_special_token=True) for encoded in encoded_content])
 
     # Write the 2 columns (tokenized and encoded) to an Excel file
     df.to_excel(output_file_name)
@@ -58,7 +44,41 @@ def transform_data(df, output_file_name="output_datasets/finalver1_complete.xlsx
     return df
 
 
-filter_ = filter_by_covid('factver1.xlsx', COVID_NAMES)
+# Tokenizing, Encoding, and Decoding function
+def tokenize_claims_and_evidence(df, output_file_name="output_datasets/tokenized_claims_and_evidence.xlsx"):
+    df = df.copy()  # To avoid SettingWithCopyWarning
+    gpt2_tokenizer = GPT2Tokenizer.from_pretrained('gpt2')
 
-# new addition
+    # Tokenizing and Encoding 'Claim' column
+    if 'Claim' in df.columns:
+        df = df[df['Claim'].apply(lambda x: isinstance(x, str))]
+        df['tokenized_claims'] = df['Claim'].apply(gpt2_tokenizer.tokenize)
+        df['encoded_claims'] = df['tokenized_claims'].apply(
+            lambda x: gpt2_tokenizer.encode_plus(x, return_tensors='tf', return_attention_mask=True)
+        )
 
+    # Tokenizing and Encoding 'Reason' column
+    if 'Reason' in df.columns:
+        df = df[df['Reason'].apply(lambda x: isinstance(x, str))]
+        df['tokenized_reason'] = df['Reason'].apply(gpt2_tokenizer.tokenize)
+        df['encoded_reason'] = df['tokenized_reason'].apply(
+            lambda x: gpt2_tokenizer.encode_plus(x, return_tensors='tf', return_attention_mask=True)
+        )
+
+    # Tokenizing and Encoding 'Evidence' column
+    if 'Evidence' in df.columns:
+        df = df[df['Evidence'].apply(lambda x: isinstance(x, str))]
+        df['tokenized_evidence'] = df['Evidence'].apply(gpt2_tokenizer.tokenize)
+        df['encoded_evidence'] = df['tokenized_evidence'].apply(
+            lambda x: gpt2_tokenizer.encode_plus(x, return_tensors='tf', return_attention_mask=True)
+        )
+
+    df.to_excel(output_file_name, index=False)
+    return df
+
+
+df_claims = pd.read_excel('Evidence/Claim and evidence.xlsx')  # Load the data
+
+filter_ = filter_by_covid('factVer1.3.xlsx', COVID_NAMES)
+tokenize_claims_and_evidence(df_claims)
+transform_data(filter_)
