@@ -1,5 +1,7 @@
 datasets/
 output_datasets/
+Evidence/
 venv/
 .idea/
 Fact_Verification.iml
+
