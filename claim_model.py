@@ -1,8 +1,6 @@
-import numpy as np
-import tensorflow as tf
 import pandas as pd
+import tensorflow as tf
 from transformers import TFGPT2Model
-from annotate import filter_by_covid, COVID_NAMES
 from transformer_model import transformed_data
 
 
@@ -15,27 +13,20 @@ def write_sample_data() -> None:
 
 
 def preparing_model(df):
-    print("Columns in DataFrame: ", df.columns)
-    print("DataFrame Content: \n", df.head())
-    max_len_claim = df['claim_input_ids'].apply(len).max()
-    max_len_evidence = df['evidence_input_ids'].apply(len).max()
-    max_len_reason = df['reason_input_ids'].apply(len).max()
+    def extract_input_ids_and_masks(encoded_column):
+        input_ids = []
+        attention_masks = []
+        for encoded in encoded_column:
+            input_ids.append(encoded['input_ids'].numpy().tolist())
+            attention_masks.append(encoded['attention_mask'].numpy().tolist())
+        return input_ids, attention_masks
 
-    def pad_sequence(seq, max_len):
-        return np.array([i + [0] * (max_len - len(i)) for i in seq])
-
-    claim_input_ids = pad_sequence(df['claim_input_ids'].tolist(), max_len_claim)
-    claim_atten_masks = pad_sequence(df['claim_atten_mask'].tolist(), max_len_claim)
-
-    evidence_input_ids = pad_sequence(df['evidence_input_ids'].tolist(), max_len_evidence)
-    evidence_atten_masks = pad_sequence(df['evidence_atten_mask'].tolist(), max_len_evidence)
-
-    reason_input_ids = pad_sequence(df['reason_input_ids'].tolist(), max_len_reason)
-    reason_atten_masks = pad_sequence(df['reason_atten_mask'].tolist(), max_len_reason)
-
-    print("New preparing_model function is being called!")
+    claim_input_ids, claim_atten_masks = extract_input_ids_and_masks(df['encoded_claims'])
+    evidence_input_ids, evidence_atten_masks = extract_input_ids_and_masks(df['encoded_evidences'])
+    reason_input_ids, reason_atten_masks = extract_input_ids_and_masks(df['encoded_reasons'])
 
     return claim_input_ids, claim_atten_masks, evidence_input_ids, evidence_atten_masks, reason_input_ids, reason_atten_masks
+
 
 def claim_model(*args):
     """
@@ -141,11 +132,11 @@ def claim_model(*args):
     print(f'Test Loss: {test_loss}, Test Accuracy: {test_acc}')
 
 
-claim_input_ids, claim_atten_masks, evidence_input_ids, evidence_atten_masks, reason_input_ids, reason_atten_masks = preparing_model(
-    transformed_data)
+claim_input_ids, claim_attention_masks, evidence_input_ids, evidence_attention_masks, reason_input_ids, \
+    reason_attention_masks = preparing_model(transformed_data)
 
-claim_model(claim_input_ids, claim_atten_masks, evidence_input_ids, evidence_atten_masks, reason_input_ids,
-            reason_atten_masks)
+claim_model(claim_input_ids, claim_attention_masks, evidence_input_ids, evidence_attention_masks, reason_input_ids,
+            reason_attention_masks)
 
 # TODO: 1. Use tensorflow
 # train model
