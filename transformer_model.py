@@ -4,8 +4,7 @@ import tensorflow as tf
 from annotate import filter_by_covid, COVID_NAMES
 
 
-def encode_and_pad(tokenized_content):
-    max_length = 512
+def encode_and_pad(tokenized_content, max_length=512):
     input_ids_list = []
     attention_mask_list = []
 
@@ -37,27 +36,23 @@ def transform_data(df, output_file_name):
     # Tokenize the 'claims' column if it exists
     if 'claims' in df.columns:
         df['tokenized_claims'] = df['claims'].apply(lambda claims: [gpt2_tokenizer.tokenize(claim) for claim in claims])
-        df['encoded_claims'] = df['tokenized_claims'].apply(encode_and_pad)
+        df['encoded_claims'] = df['tokenized_claims'].apply(lambda tc: encode_and_pad(tc, max_length=512))
 
-    # Tokenize the 'Claim', 'Evidence', and 'Reason' columns if they exist
+    # Tokenize and Encode the 'Claim', 'Evidence', and 'Reason' columns if they exist
     if 'Claim' in df.columns and 'Evidence' in df.columns and 'Reason' in df.columns:
         df['tokenized_claims'] = df['Claim'].apply(lambda claim: gpt2_tokenizer.tokenize(claim))
         df['tokenized_evidences'] = df['Evidence'].apply(lambda evidence: gpt2_tokenizer.tokenize(evidence))
         df['tokenized_reasons'] = df['Reason'].apply(lambda reason: gpt2_tokenizer.tokenize(reason))
 
+        # Filter out rows with empty tokenized claims, evidences, and reasons
+        df = df[df['tokenized_claims'].apply(lambda x: len(x) > 0)]
+        df = df[df['tokenized_evidences'].apply(lambda x: len(x) > 0)]
+        df = df[df['tokenized_reasons'].apply(lambda x: len(x) > 0)]
+
         # Encode the tokenized content
-        df['encoded_claims'] = df['tokenized_claims'].apply(
-            lambda tokenized_content: gpt2_tokenizer.encode_plus(tokenized_content, return_tensors='tf',
-                                                                 return_attention_mask=True, max_length=100,
-                                                                 truncation=True, padding=True))
-        df['encoded_evidences'] = df['tokenized_evidences'].apply(
-            lambda tokenized_content: gpt2_tokenizer.encode_plus(tokenized_content, return_tensors='tf',
-                                                                 return_attention_mask=True, max_length=100,
-                                                                 truncation=True, padding=True))
-        df['encoded_reasons'] = df['tokenized_reasons'].apply(
-            lambda tokenized_content: gpt2_tokenizer.encode_plus(tokenized_content, return_tensors='tf',
-                                                                 return_attention_mask=True, max_length=100,
-                                                                 truncation=True, padding=True))
+        df['encoded_claims'] = df['tokenized_claims'].apply(lambda tc: encode_and_pad(tc, max_length=512))
+        df['encoded_evidences'] = df['tokenized_evidences'].apply(lambda te: encode_and_pad(te, max_length=512))
+        df['encoded_reasons'] = df['tokenized_reasons'].apply(lambda tr: encode_and_pad(tr, max_length=512))
 
     df.to_excel(output_file_name)
     return df

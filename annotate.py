@@ -53,4 +53,4 @@ def filter_by_covid(file_name, keywords):
 
 
 # Function call
-filter_by_covid("factVer1.3.xlsx", COVID_NAMES)
+filter_by_covid("factVer1.xlsx", COVID_NAMES)
