@@ -66,17 +66,17 @@ def transform_data(df, output_file_name):
 
     df['encoded_claims'] = df['tokenized_claims'].apply(
         lambda tokenized_content : gpt2_tokenizer.encode_plus(tokenized_content,
-        return_tensors='tf', return_attention_mask=True,max_length=100, truncation=True,padding=True)
+        return_tensors='tf', return_attention_mask=True,max_length=512, truncation=True,padding='max_length')
     )
 
     df['encoded_evidences'] = df['tokenized_evidences'].apply(
         lambda tokenized_content : gpt2_tokenizer.encode_plus(tokenized_content,
-        return_tensors='tf', return_attention_mask=True,max_length=100, truncation=True,padding=True)
+        return_tensors='tf', return_attention_mask=True,max_length=512, truncation=True,padding='max_length')
     )
 
     df['encoded_reasons'] = df['tokenized_reasons'].apply(
         lambda tokenized_content : gpt2_tokenizer.encode_plus(tokenized_content,
-        return_tensors='tf', return_attention_mask=True,max_length=100,truncation=True,padding=True)
+        return_tensors='tf', return_attention_mask=True,max_length=512,truncation=True,padding='max_length')
     )
 
 
