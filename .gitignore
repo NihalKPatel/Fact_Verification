@@ -2,4 +2,8 @@ datasets/
 output_datasets/
 venv/
 .idea/
-Fact_Verification.iml
+log.txt
+__pycache__/
+
+
+
