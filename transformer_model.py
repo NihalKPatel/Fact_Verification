@@ -11,6 +11,7 @@ class TransformerModel:
     Recieve input file, and transform it to give output file
     '''
     
+    
     def __init__(self, in_file:str, out_file:str):
         self.in_file = in_file
         self.out_file = out_file
