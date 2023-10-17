@@ -4,6 +4,8 @@ from transformers import TFGPT2Model, TFBertModel
 from annotate import COVID_NAMES
 from transformer_model import transformed_data
 import numpy as np
+from sklearn.metrics import recall_score
+
 import sys
 
 
@@ -38,13 +40,14 @@ def preparing_model(df,):
     df['claim_atten_mask'] = df['encoded_claims'].apply(lambda claim:claim['attention_mask'])
     df ['evidence_input_ids'] = df['encoded_evidences'].apply(lambda evidence: evidence['input_ids'] )
     df ['evidence_atten_mask'] = df['encoded_evidences'].apply(lambda evidence: evidence['attention_mask'])
-    df ['reason_input_ids'] = df['encoded_reasons'].apply(lambda reason: reason['input_ids'])
-    df ['reason_atten_mask'] = df['encoded_reasons'].apply(lambda reason: reason['attention_mask'])
+    #df ['reason_input_ids'] = df['encoded_reasons'].apply(lambda reason: reason['input_ids'])
+    #df ['reason_atten_mask'] = df['encoded_reasons'].apply(lambda reason: reason['attention_mask'])
 
 
     df.to_excel('output_datasets/modelset_final.xlsx')
 
-    return np.array(df['claim_input_ids'].tolist(),dtype=np.int32), np.array(df['claim_atten_mask'].tolist(),dtype=np.int32), np.array(df['evidence_input_ids'].tolist(),dtype=np.int32),np.array(df['evidence_atten_mask'].tolist(),dtype=np.int32),np.array(df['reason_input_ids'].tolist(),dtype=np.int32),np.array(df['reason_atten_mask'].tolist(),dtype=np.int32)
+    return np.array(df['claim_input_ids'].tolist(),dtype=np.int32), np.array(df['claim_atten_mask'].tolist(),dtype=np.int32), np.array(df['evidence_input_ids'].tolist(),dtype=np.int32),np.array(df['evidence_atten_mask'].tolist(),dtype=np.int32)
+
 
 
 
@@ -81,8 +84,8 @@ def claim_model(*args):
         claim_attention_mask = tf.keras.Input(shape=(512,), name="claim_attention_mask",dtype=tf.int32)
         evidence_input_ids = tf.keras.Input(shape=(512,),  name="evidence_input_ids",dtype=tf.int32)
         evidence_attention_mask = tf.keras.Input(shape=(512,),  name="evidence_attention_mask",dtype=tf.int32)
-        reason_input_ids = tf.keras.Input(shape=(512,), name="reason_input_ids",dtype=tf.int32)
-        reason_attention_mask = tf.keras.Input(shape=(512,), name="reason_attention_mask",dtype=tf.int32)
+        #reason_input_ids = tf.keras.Input(shape=(512,), name="reason_input_ids",dtype=tf.int32)
+        #reason_attention_mask = tf.keras.Input(shape=(512,), name="reason_attention_mask",dtype=tf.int32)
 
 
         claim_inputs = {
@@ -93,16 +96,18 @@ def claim_model(*args):
             'input_ids': evidence_input_ids,
             'attention_mask': evidence_attention_mask
         }
+        '''
         reason_inputs = {
             'input_ids': reason_input_ids,
             'attention_mask': reason_attention_mask
         }
+        '''
 
         # Create separate embedding layers for each input type
         bert_embedding_layer = BertEmbeddingLayer(bert_model, name="bert_embedding")
         claim_embedding = bert_embedding_layer([*claim_inputs.values()])
         evidence_embedding = bert_embedding_layer([*evidence_inputs.values()])
-        reason_embedding = bert_embedding_layer([*reason_inputs.values()])
+        #reason_embedding = bert_embedding_layer([*reason_inputs.values()])
 
 
 
@@ -110,37 +115,45 @@ def claim_model(*args):
         
         # Add any additional layers for processing the embeddings if needed
         # For example, you can concatenate the embeddings
-        concatenated_embeddings = tf.keras.layers.Concatenate()([claim_embedding, evidence_embedding, reason_embedding])
+        concatenated_embeddings = tf.keras.layers.Concatenate()([claim_embedding, evidence_embedding])
         concatenated_embeddings = tf.keras.layers.GlobalAveragePooling1D()(concatenated_embeddings)
 
         # Add your classification layers on top of the concatenated embeddings
         classification_output = tf.keras.layers.Dense(3, activation='softmax', name='veracity_layer')(concatenated_embeddings)
-        print(f"classification output shape {classification_output.shape}")
-       
-        print(type(classification_output))
 
-        model = tf.keras.Model(inputs=[claim_input_ids, claim_attention_mask, evidence_input_ids, evidence_attention_mask, reason_input_ids, reason_attention_mask], outputs=classification_output)
+        model = tf.keras.Model(inputs=[claim_input_ids, claim_attention_mask, evidence_input_ids, evidence_attention_mask], outputs=classification_output)
 
-
-       
+        df = pd.read_excel("output_datasets/modelset_final.xlsx")
+        # Strip any leading/trailing whitespace from the labels
+        df['Label'] = df['Label'].str.strip()
+        # Map the string labels to integers
+        Label_mapping = {'T': 0, 'F': 1, 'N': 2}
+        df['Label'] = df['Label'].map(Label_mapping)
+        # Handle any missing or unmapped labels
+        if df['Label'].isnull().any:
+           print(f"Warning: {df['Label'].isnull().sum()} labels were not mapped correctly")
+           df = df.dropna(subset=['Label']) # Drop rows with missing labels
+        # Convert labels to one-hot encoding
+        tf_labels = tf.keras.utils.to_categorical(df['Label'].astype(int), num_classes=3)
+        tf_labels = tf. reshape(tf_labels, (-1, 3))
+        '''
         tf_labels = tf.constant([0,1,2],dtype = tf.int32)
         tf_labels = tf.one_hot(tf_labels, depth=3)
+        '''
 
         
         shaped_tensors = reshape_tensors(*args)
         features_dataset = tf.data.Dataset.from_tensor_slices((
-            (shaped_tensors[0],shaped_tensors[1]),(shaped_tensors[2],shaped_tensors[3]),(shaped_tensors[4],shaped_tensors[5])
-    
+            (shaped_tensors[0],shaped_tensors[1]),(shaped_tensors[2],shaped_tensors[3])
     ))
         
+
 
 
         labels_dataset = tf.data.Dataset.from_tensor_slices((
             tf_labels
         ))
         
-
-        print(f"labels shapes: {tf_labels.shape}")
 
       
         dataset = tf.data.Dataset.zip((features_dataset,labels_dataset))
@@ -149,7 +162,8 @@ def claim_model(*args):
         #calculate the total number of samples (rows)
         samples = len(args[0])
         # specify the training dataset size
-        train_size = int(samples*0.7)
+        train_size = int(samples*0.8)
+
         test_size = samples - train_size #newly added line
         #shuffle the dataset
         dataset = dataset.shuffle(buffer_size=samples, seed=42, reshuffle_each_iteration=False)
@@ -158,8 +172,8 @@ def claim_model(*args):
         print(f"Total samples: {samples}")
         print(f"Train size: {train_size}")
         print(f"Test size: {test_size}")
-        train_dataset = dataset.take(train_size).batch(1)
-        test_dataset = dataset.skip(train_size).take(test_size).batch(1)
+        train_dataset = dataset.skip(test_size).batch(1)
+        test_dataset = dataset.take(test_size).batch(1)
         # Compile the classification model
 
 
@@ -173,22 +187,38 @@ def claim_model(*args):
         # Test the model
         test_loss, test_acc = model.evaluate(test_dataset)
 
+        prediction = model.predict(test_dataset)
+        print(f"prediction /veracity: {prediction}")
+        veracity_labels = np.argmax(prediction, axis=1)
+        # Mapping from integer labels to veracity classes
+        label_mapping = {0: 'T', 1: 'F', 2: 'N'}
+
+        # Convert integer labels to veracity classes
+        #veracity_labels = [label_mapping[label] for label in veracity_labels]
+        print(veracity_labels)
+
+        #true_labels = [Label_mapping[label] for label in df['Label']]  # Assuming 'Label' column contains ground truth labels
+        #predicted_labels = [Label_mapping[label] for label in prediction]
+
+        #recall = recall_score(true_labels, predicted_labels, average='weighted')
+
+        #print(f"Label predicitions : {predicited_labels}")
+        #print(f"recall : {recall}")
+
         print(f'Test Loss: {test_loss}, Test Accuracy: {test_acc}')
+
     except Exception as e:
 
         with open('log.txt','w') as log:
             log.write(str(e)+" "+str(sys.exc_info()[-1].tb_lineno))
-            log.write("Model Summary")
-            log.write(str(model.summary()))
-
-
-    
 
 
 
-claim_input_ids, claim_atten_masks, evidence_input_ids, evidence_atten_masks,reason_input_ids, reason_atten_masks = preparing_model(transformed_data)
 
-claim_model(claim_input_ids,claim_atten_masks,evidence_input_ids,evidence_atten_masks, reason_input_ids,reason_atten_masks)
+claim_input_ids, claim_atten_masks, evidence_input_ids, evidence_atten_masks = preparing_model(transformed_data)
+
+claim_model(claim_input_ids,claim_atten_masks,evidence_input_ids,evidence_atten_masks)
+
 
 
 
@@ -205,5 +235,6 @@ claim_model(claim_input_ids,claim_atten_masks,evidence_input_ids,evidence_atten_
 # specific number of truthness
 
 #DECODING HAPPEN AFTER DATA is trained.
+
 
 

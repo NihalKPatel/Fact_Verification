@@ -9,7 +9,7 @@ COVID_NAMES = [
 
 class DataAnnotation:
     '''
-    Clean data and initializing the data in a new column
+    Clean and label data and initializing the data in a new column
     '''
     def __init__(self,file_name,keywords):
         self.file_name = file_name
