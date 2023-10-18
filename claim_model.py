@@ -164,7 +164,7 @@ def claim_model(*args):
         # Train the classification model
         validation_steps = len(test_dataset)
         print(f"size of test_dataset is {validation_steps}")
-        model.fit(train_dataset, epochs=1, validation_data=test_dataset, validation_steps=validation_steps)
+        model.fit(train_dataset, epochs=4, validation_data=test_dataset, validation_steps=validation_steps)
 
         # Test the model
         test_loss, test_acc = model.evaluate(test_dataset)
