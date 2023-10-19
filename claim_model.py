@@ -1,5 +1,12 @@
-import logging
 
+import tensorflow as tf
+import pandas as pd
+from transformers import TFGPT2Model, TFBertModel
+from annotate import COVID_NAMES
+from transformer_model import transformed_data
+import numpy as np
+from sklearn.metrics import precision_score, recall_score, f1_score
+import logging
 
 import sys
 import numpy as np
@@ -173,6 +180,7 @@ def claim_model(*args):
         print(f"prediction /veracity: {prediction}")
         veracity_labels = np.argmax(prediction, axis=1)
         # Mapping from integer labels to veracity classes
+        
         label_mapping = {0: 'T', 1: 'F', 2: 'N'}
 
         # Convert integer labels to veracity classes
@@ -188,6 +196,13 @@ def claim_model(*args):
         # print(f"recall : {recall}")
 
         print(f'Test Loss: {test_loss}, Test Accuracy: {test_acc}')
+
+        true_labels = df['Label'].values
+        true_labels = true_labels[:test_size]
+        precision = precision_score(true_labels, veracity_labels, average='weighted')
+        recall = recall_score(true_labels, veracity_labels, average='weighted')
+        f1 = f1_score(true_labels, veracity_labels, average='weighted')
+        print(f'Precision: {precision}, Recall: {recall}, F1-Score: {f1}')
 
     except Exception as e:
 
